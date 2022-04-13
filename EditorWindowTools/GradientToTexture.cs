@@ -13,23 +13,26 @@ public class GradientToTexture : EditorWindow
 
     private string m_filePath = "";
     private string m_TextureName = "Gradient";
-    private Gradient m_Gradient = new Gradient ();
+    public Gradient[] m_Gradient = {new Gradient()};
     private int m_Resolution = 256;
+    private SerializedObject m_so;
+    private void OnEnable() {
+        ScriptableObject target = this;
+        m_so = new SerializedObject(target);
+    }
 
     void OnGUI ()
     {
-        GUILayoutOption[] m_option = new GUILayoutOption[]
-        {
-            GUILayout.ExpandWidth(true),
-            GUILayout.ExpandHeight(true),
-        };
-        GUILayout.Width(0);
-        GUILayout.Height(0);
-        m_filePath = EditorGUILayout.TextField("File Path",m_filePath,m_option);
-        m_TextureName = EditorGUILayout.TextField("Texture Name",m_TextureName,m_option);
-        m_Gradient = EditorGUILayout.GradientField("Gradient",m_Gradient,m_option);
-        m_Resolution = EditorGUILayout.IntField("Resoulution",m_Resolution,m_option);
-        if(GUILayout.Button("Save Gradient to Texture",m_option))
+        m_filePath = EditorGUILayout.TextField("File Path",m_filePath);
+        m_TextureName = EditorGUILayout.TextField("Texture Name",m_TextureName);
+        m_Resolution = EditorGUILayout.IntField("Resoulution",m_Resolution);
+
+        m_so.Update();
+        SerializedProperty m_gradProperty = m_so.FindProperty("m_Gradient");
+        EditorGUILayout.PropertyField(m_gradProperty, true);
+        m_so.ApplyModifiedProperties();
+
+        if(GUILayout.Button("Save Gradient to Texture"))
         {
             SaveGradient();
         }
@@ -37,37 +40,38 @@ public class GradientToTexture : EditorWindow
 
     public void SaveGradient ()
     {
-        Texture2D tex = new Texture2D (m_Resolution, 1);
-        for (int i = 0; i < m_Resolution; i++)
-            tex.SetPixel (i, 0, m_Gradient.Evaluate (i / (float)m_Resolution));
-        tex.Apply ();
+        Texture2D m_tex = new Texture2D (m_Resolution, m_Gradient.Length);
+        for (int j = 0; j < m_Gradient.Length; j++)
+        {
+            for (int i = 0; i < m_Resolution; i++)
+                m_tex.SetPixel (i, j+1, m_Gradient[j].Evaluate (i / (float)m_Resolution));
+            m_tex.Apply ();
+        }
 
-        byte[] data = tex.EncodeToPNG ();
+        byte[] m_data = m_tex.EncodeToPNG ();
 
-        string path = "";
-        string dirPath = "";
+        string m_path = "";
+        string m_dirPath = "";
         if(m_filePath != "")
         {
-            path = string.Format ("{0}/{1}/{2}.png", Application.dataPath, m_filePath, m_TextureName);
-            dirPath = string.Format ("{0}/{1}", Application.dataPath, m_filePath);
+            m_path = string.Format ("{0}/{1}/{2}.png", Application.dataPath, m_filePath, m_TextureName);
+            m_dirPath = string.Format ("{0}/{1}", Application.dataPath, m_filePath);
         }
         else
         {
-            path = string.Format ("{0}/{1}.png", Application.dataPath, m_TextureName);
+            m_path = string.Format ("{0}/{1}.png", Application.dataPath, m_TextureName);
         }
 
-        if(Directory.Exists(dirPath))
+        if(Directory.Exists(m_dirPath))
         {
-            File.WriteAllBytes (path, data);
+            File.WriteAllBytes (m_path, m_data);
         }
         else
         {
-            Directory.CreateDirectory(dirPath);
-            File.WriteAllBytes (path, data);
+            Directory.CreateDirectory(m_dirPath);
+            File.WriteAllBytes (m_path, m_data);
         }
 
-        #if UNITY_EDITOR
         AssetDatabase.Refresh();
-        #endif
     }
 }
